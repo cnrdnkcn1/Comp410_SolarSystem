@@ -26,7 +26,7 @@ color4 vertex_colors[8] = {
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
 int      Axis = Xaxis;
-GLfloat  Theta[NumAxes] = { 0.0, 0.0, 0.0 };
+GLfloat  Theta[10][NumAxes];
 
 
 int mode = 1;  // 0:cube, 1:sphere, 2:bunny
@@ -35,8 +35,8 @@ int shadeMode = 1; // 0: Gouraud, 1: Phond
 int componentMode = 0; // 0: all, 1: without specular,  2: without diffuse, 3: without ambient 
 int lightMode = 0;
 int materialMode = 0;  // 0: metalic, 1: plastic
-int displayMode = 2; //0: wireframe, 1: shading, 2: texture
-int objectMode = 0;  //0: basketball, 1: earth
+int displayMode = 0; //0: wireframe, 1: shading, 2: texture
+int objectMode = 1;  //0: basketball, 1: earth
 int colorInt = 0;   //color
 
 // Model-view and projection matrices uniform location
@@ -46,11 +46,12 @@ const GLfloat z_near = 0.5;
 const GLfloat z_far = 5.0;
 
 //only sphere and walls for shading
-const GLuint NUM_OBJECTS = 9;
+const GLuint NUM_OBJECTS = 10;
 
 
 //textures
-GLuint textures[9];
+GLuint textures[10];
+
 
 GLubyte image[2048][1024][3];
 GLubyte image2[2048][1024][3];
@@ -60,7 +61,11 @@ GLubyte image5[2048][1024][3];
 GLubyte image6[2048][1024][3];
 GLubyte image7[2048][1024][3];
 GLubyte image8[2048][1024][3];
-GLubyte image9[512][512][3];
+GLubyte image9[2048][1024][3];
+GLubyte image10[512][512][3];
+
+GLubyte(*images[10])[2048][1024][3] = { &image, &image2, &image3, &image4, &image5, &image6, &image7, &image8, &image9 };
+GLubyte(*image10_ptr)[512][512][3] = &image10;
 
 GLuint  TextureFlagLoc; // texture flag uniform location
 bool textureFlag = true;
@@ -68,15 +73,18 @@ bool textureFlag = true;
 
 const GLfloat SCALE_FACTOR = 0.05;
 
+const GLfloat scales[10] = { 0.3, 0.05,0.1,0.1,0.07, 0.2,0.15, 0.15, 0.15, 0.05 };
+const GLfloat thetas[10] = { 0.5, 0.2,0.4,0.6,0.3, 0.1,0.6, 0.4, 0.5, 0.5 };
+
 const GLfloat FOV = 90.0;
 
 // Wall boundaries
-GLfloat leftWall = -1.0;
-GLfloat rightWall = 1.0;
-GLfloat bottomWall = -1.0;
-GLfloat topWall = 1.0;
-GLfloat backWall = -3.0;
-GLfloat frontWall = -z_near;
+GLfloat leftWall = -3.0;
+GLfloat rightWall = 3.0;
+GLfloat bottomWall = -3.0;
+GLfloat topWall = 3.0;
+GLfloat backWall = -5.0;
+GLfloat frontWall = -z_near-2;
 
 // Speed values for movement
 const GLfloat HORIZONTAL_SPEED = 0.009;
@@ -87,9 +95,10 @@ const GLfloat Z_SPEED = 0.003;
 vec3 velo(HORIZONTAL_SPEED, VERTICAL_SPEED, Z_SPEED);
 int direction[3] = { 1, 1, 1 };
 
-const vec3 TOP_LEFT_FRONT_CORNER = vec3(0, -0.25, -1.0); //vec3(-0.75, 0.75, -2.0);
+const vec3 TOP_LEFT_FRONT_CORNER = vec3(0, -0.25, -2.0); //vec3(-0.75, 0.75, -2.0);
 
-point4 light_position(0.0, 0.0, -2.0, 1.0);
+//point4 light_position(0.0, 0.0, -2.0, 1.0);
+point4 light_position(TOP_LEFT_FRONT_CORNER.x, TOP_LEFT_FRONT_CORNER.y, TOP_LEFT_FRONT_CORNER.z,1.0);
 GLuint denemee;
 
 // Storing objects and wall in the vertex array object (VAO)
@@ -316,223 +325,62 @@ void readppm() {
     int a1, a2, a3 = 0;   //row, column and max values in ppm
     int c1, c2, c3; //color values in ppm
 
-    const char* filename1 = "2k_mars.ppm";
-    const char* filename2 = "2k_mercury.ppm";
-    const char* filename3 = "2k_earth_daymap.ppm";
-    const char* filename4 = "2k_jupiter.ppm";
-    const char* filename5 = "2k_neptune.ppm";
-    const char* filename6 = "2k_saturn.ppm";
-    const char* filename7 = "2k_uranus.ppm";
-    const char* filename8 = "2k_venus_surface.ppm";
-    const char* filename9 = "2k_venus_surface.ppm"; //.https://www.solarsystemscope.com/textures/
+    const char* filenames[] = {
+        "2k_sun.ppm",
+        "2k_mercury.ppm",
+        "2k_venus_surface.ppm",
+        "2k_earth_daymap.ppm",
+        "2k_mars.ppm",
+        "2k_jupiter.ppm",
+        "2k_saturn.ppm",
+        "2k_uranus.ppm",
+        "2k_neptune.ppm",
+        "2k_stars_milky_way2.ppm"
+    };
+
 
     //reading basketball.ppm
 
-    FILE* fp = fopen(filename1, "r");
+    for (int k = 0; k < 9; k++) {
+        FILE* fp = fopen(filenames[k], "r");
+        if (fp == NULL) {
+            exit(EXIT_FAILURE);
+        }
 
-    if (fp == NULL)
+        fscanf(fp, "%s", first_line);
+        fscanf(fp, "%d %d %d", &a1, &a2, &a3);
+
+        for (int i = 0; i < a1; i++) {
+            for (int j = 0; j < a2; j++) {
+                fscanf(fp, "%d %d %d", &c1, &c2, &c3);
+                (*images[k])[i][j][0] = c1;
+                (*images[k])[i][j][1] = c2;
+                (*images[k])[i][j][2] = c3;
+            }
+        }
+
+        fclose(fp);
+    }
+
+    // Special case for the 10th image
+    FILE* fp = fopen(filenames[9], "r");
+    if (fp == NULL) {
         exit(EXIT_FAILURE);
-
-    
+    }
 
     fscanf(fp, "%s", first_line);
     fscanf(fp, "%d %d %d", &a1, &a2, &a3);
 
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
+    for (int i = 0; i < a1; i++) {
+        for (int j = 0; j < a2; j++) {
             fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image[i][j][0] = c1;
-            image[i][j][1] = c2;
-            image[i][j][2] = c3;
+            (*image10_ptr)[i][j][0] = c1;
+            (*image10_ptr)[i][j][1] = c2;
+            (*image10_ptr)[i][j][2] = c3;
         }
     }
 
     fclose(fp);
-
-    // reading earth.ppm
-
-    fp = fopen(filename2, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image2[i][j][0] = c1;
-            image2[i][j][1] = c2;
-            image2[i][j][2] = c3;
-        }
-    }
-    fclose(fp);
-
-    fp = fopen(filename3, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image3[i][j][0] = c1;
-            image3[i][j][1] = c2;
-            image3[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
-    fp = fopen(filename4, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image4[i][j][0] = c1;
-            image4[i][j][1] = c2;
-            image4[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
-    fp = fopen(filename5, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image5[i][j][0] = c1;
-            image5[i][j][1] = c2;
-            image5[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
-    fp = fopen(filename6, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image6[i][j][0] = c1;
-            image6[i][j][1] = c2;
-            image6[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
-    fp = fopen(filename7, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image7[i][j][0] = c1;
-            image7[i][j][1] = c2;
-            image7[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
-    fp = fopen(filename8, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image8[i][j][0] = c1;
-            image8[i][j][1] = c2;
-            image8[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
-    fp = fopen(filename9, "r");
-
-    if (fp == NULL)
-        exit(EXIT_FAILURE);
-
-
-
-    fscanf(fp, "%s", first_line);
-    fscanf(fp, "%d %d %d", &a1, &a2, &a3);
-
-    for (int i = 0; i < a1; i++)
-    {
-        for (int j = 0; j < a2; j++)
-        {
-            fscanf(fp, "%d %d %d", &c1, &c2, &c3);
-            image8[i][j][0] = c1;
-            image8[i][j][1] = c2;
-            image8[i][j][2] = c3;
-        }
-    }
-
-    fclose(fp);
-
    
 }
 void init()
@@ -621,7 +469,7 @@ void init()
 
     // sphere attributes added to buffer
 
-    for (int i = 1; i < 9; i++) {
+    for (int i = 1; i < 10; i++) {
         glBindVertexArray(vao[i]);
         glGenBuffers(1, &sphere::buffer);
         glBindBuffer(GL_ARRAY_BUFFER, sphere::buffer);
@@ -668,113 +516,28 @@ void init()
     glGenTextures(9, textures);
 
     //Basketball texture 
-    glBindTexture(GL_TEXTURE_2D, textures[0]);
+    for (int i = 0; i < 9; i++) {
+        glBindTexture(GL_TEXTURE_2D, textures[i]);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
+            GL_RGB, GL_UNSIGNED_BYTE, images[i]);
+       glGenerateMipmap(GL_TEXTURE_2D);
 
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    
 
-    //Earth texture
-    glBindTexture(GL_TEXTURE_2D, textures[1]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image2);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, textures[2]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image3);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-
-    glBindTexture(GL_TEXTURE_2D, textures[3]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image4);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-
-    glBindTexture(GL_TEXTURE_2D, textures[4]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image5);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, textures[5]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image6);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, textures[6]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image7);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, textures[7]);
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image8);
-
-    //minmapping
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    glBindTexture(GL_TEXTURE_2D, textures[8]);
+    glBindTexture(GL_TEXTURE_2D, textures[9]);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 512, 512, 0,
-        GL_RGB, GL_UNSIGNED_BYTE, image9);
+        GL_RGB, GL_UNSIGNED_BYTE, image10);
 
     //minmapping
     glGenerateMipmap(GL_TEXTURE_2D);
@@ -794,12 +557,12 @@ void init()
     }*/
     
 
-    color4 light_ambient(1, 1, 1, 1.0); // L_a
-    color4 light_diffuse(0.5, 0.5, 0.5, 1.0); // L_d
-    color4 light_specular(0.5, 0.5, 0.5, 1.0); // L_s
+    color4 light_ambient(0.2, 0.2, 0.2, 1.0); // L_a
+    color4 light_diffuse(1, 1, 1, 1.0); // L_d
+    color4 light_specular(0.2, 0.2, 0.2, 1.0); // L_s
 
     color4 material_ambient(1.0, 1.0, 1.0, 1.0); // k_a
-    color4 material_diffuse(1.0, 1.0, 1.0, 1.0); // k_d
+    color4 material_diffuse(1, 1, 1, 1.0); // k_d
     color4 material_specular(1.0, 1.0, 1.0, 1.0); // k_s
 
     float  material_shininess;
@@ -867,7 +630,7 @@ void display(void)
     glBindVertexArray(vao[0]);
     glBindBuffer(GL_ARRAY_BUFFER, wall::buffer);
     glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
-    glBindTexture(GL_TEXTURE_2D, textures[8]);
+    glBindTexture(GL_TEXTURE_2D, textures[9]);
     glDrawArrays(GL_TRIANGLES, 0, wall::numVertices);
     
     displacement += velo;
@@ -889,39 +652,27 @@ void display(void)
         // rotate cube and sphere
 
 
-    for (int i = 1; i < 9; i++) {
+    for (int i = 0; i < 9; i++) {
         /*model_view = (Translate(TOP_LEFT_FRONT_CORNER + (i-1) * vec3(0.2, 0, 0)) *
             Scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR) * RotateX(Theta[Xaxis]) *
             RotateY(Theta[Yaxis]) *
             RotateZ(Theta[Zaxis]) *
             RotateZ(180)* Translate((i - 1) * vec3(0.2, 0, 0)));*/
 
-        model_view = (Translate(TOP_LEFT_FRONT_CORNER) *
-            Scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR) * RotateX(Theta[Xaxis]) *
-            RotateY(Theta[Yaxis]) *
-            RotateZ(Theta[Zaxis]) *
-            RotateZ(180) * Translate((i - 1) * vec3(2, 0, 0)));
+        model_view = (Translate(TOP_LEFT_FRONT_CORNER) * RotateX(Theta[i][Xaxis]) *
+            RotateY(Theta[i][Yaxis]) *
+            RotateZ(Theta[i][Zaxis]) *
+            RotateZ(180) * Translate(i * vec3(0.15, 0, 0)) *
+            Scale(scales[i] / 2, scales[i] / 2, scales[i] / 2));
 
 
-        if (i > 4) {
-            model_view = (Translate(TOP_LEFT_FRONT_CORNER) *
-                Scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR) * RotateX(Theta[Xaxis]) *
-                RotateY(Theta[Yaxis]) *
-                RotateZ(Theta[Zaxis]) * RotateZ(180)* Translate((i-1)*vec3(2, 0, 0)));
-        }
-        if (i > 8) {
-            model_view = (Translate(TOP_LEFT_FRONT_CORNER) *
-                Scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR) * RotateX(Theta[Xaxis]) *
-                RotateY(Theta[Yaxis]) *
-                RotateZ(Theta[Zaxis]) * RotateZ(180)* Translate((i - 1) * vec3(2, 0, 0)));
-        }
-
+        
         glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
 
-        glBindVertexArray(vao[i]);
+        glBindVertexArray(vao[i+1]);
         glBindBuffer(GL_ARRAY_BUFFER, sphere::buffer);
 
-        glBindTexture(GL_TEXTURE_2D, textures[i-1]); //set current texture
+        glBindTexture(GL_TEXTURE_2D, textures[i]); //set current texture
 
 
         //Switching to wireframe
@@ -1112,7 +863,11 @@ void update(void)
     {
         velo[2] = -0.003;
     }
-    Theta[1] += 1;
+
+    for (int i = 0; i < 10; i++) {
+        Theta[i][1] += thetas[i];
+    }
+    
 }
 
 // main
