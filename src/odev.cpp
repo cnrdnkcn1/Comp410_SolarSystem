@@ -26,7 +26,8 @@ color4 vertex_colors[8] = {
 // Array of rotation angles (in degrees) for each coordinate axis
 enum { Xaxis = 0, Yaxis = 1, Zaxis = 2, NumAxes = 3 };
 int      Axis = Xaxis;
-GLfloat  Theta[10][NumAxes];
+GLfloat  Theta[11][NumAxes];
+GLfloat  ThetaR[NumAxes] = {16,0,0};
 
 
 int mode = 1;  // 0:cube, 1:sphere, 2:bunny
@@ -42,15 +43,16 @@ int colorInt = 0;   //color
 // Model-view and projection matrices uniform location
 GLuint ModelView, Projection;
 
-const GLfloat z_near = 0.5;
-const GLfloat z_far = 5.0;
+const GLfloat z_near = 0.1;
+const GLfloat z_far = 6.0;
 
 //only sphere and walls for shading
-const GLuint NUM_OBJECTS = 10;
+const GLuint NUM_OBJECTS = 11;
 
+vec3 zoom = { 0,0,0 };
 
 //textures
-GLuint textures[10];
+GLuint textures[11];
 
 
 GLubyte image[2048][1024][3];
@@ -62,10 +64,14 @@ GLubyte image6[2048][1024][3];
 GLubyte image7[2048][1024][3];
 GLubyte image8[2048][1024][3];
 GLubyte image9[2048][1024][3];
+GLubyte image11[2048][1024][3];
 GLubyte image10[512][512][3];
 
-GLubyte(*images[10])[2048][1024][3] = { &image, &image2, &image3, &image4, &image5, &image6, &image7, &image8, &image9 };
+
+
+GLubyte(*images[10])[2048][1024][3] = { &image, &image2, &image3, &image4, &image5, &image6, &image7, &image8, &image9, &image11 };
 GLubyte(*image10_ptr)[512][512][3] = &image10;
+
 
 GLuint  TextureFlagLoc; // texture flag uniform location
 bool textureFlag = true;
@@ -73,8 +79,21 @@ bool textureFlag = true;
 
 const GLfloat SCALE_FACTOR = 0.05;
 
-const GLfloat scales[10] = { 0.3, 0.05,0.1,0.1,0.07, 0.2,0.15, 0.15, 0.15, 0.05 };
-const GLfloat thetas[10] = { 0.5, 0.2,0.4,0.6,0.3, 0.1,0.6, 0.4, 0.5, 0.5 };
+const GLfloat scales[11] = { 0.25, 0.05 ,0.1 ,0.1 ,0.07, 0.15 ,0.12, 0.10, 0.12, 0.04 , 0.5};
+const GLfloat thetas[11] = { 0.6, 0.8, 0.5, 0.6, 0.7, 0.45, 0.25, 0.15, 0.35, 0.5,-5 };
+const vec3 distance[11] = {
+    vec3(0.00, 0.0, 0.0),
+    vec3(0.20, 0.0, 0.0),
+    vec3(0.35, 0.0, 0.0),
+    vec3(0.50, 0.0, 0.0),
+    vec3(0.65, 0.0, 0.0),
+    vec3(0.80, 0.0, 0.0),
+    vec3(0.95, 0.0, 0.0),
+    vec3(1.10, 0.0, 0.0),
+    vec3(1.25, 0.0, 0.0),
+    vec3(1.40, 0.0, 0.0),
+    vec3(1.55, 0.0, 0.0)
+};
 
 const GLfloat FOV = 90.0;
 
@@ -83,8 +102,8 @@ GLfloat leftWall = -3.0;
 GLfloat rightWall = 3.0;
 GLfloat bottomWall = -3.0;
 GLfloat topWall = 3.0;
-GLfloat backWall = -5.0;
-GLfloat frontWall = -z_near-2;
+GLfloat backWall = -6.0;
+GLfloat frontWall = -z_near - 2;
 
 // Speed values for movement
 const GLfloat HORIZONTAL_SPEED = 0.009;
@@ -95,10 +114,10 @@ const GLfloat Z_SPEED = 0.003;
 vec3 velo(HORIZONTAL_SPEED, VERTICAL_SPEED, Z_SPEED);
 int direction[3] = { 1, 1, 1 };
 
-const vec3 TOP_LEFT_FRONT_CORNER = vec3(0, -0.25, -2.0); //vec3(-0.75, 0.75, -2.0);
+const vec3 TOP_LEFT_FRONT_CORNER = vec3(0, 0, -1.5); //vec3(-0.75, 0.75, -2.0);
 
 //point4 light_position(0.0, 0.0, -2.0, 1.0);
-point4 light_position(TOP_LEFT_FRONT_CORNER.x, TOP_LEFT_FRONT_CORNER.y, TOP_LEFT_FRONT_CORNER.z,1.0);
+point4 light_position(TOP_LEFT_FRONT_CORNER.x, TOP_LEFT_FRONT_CORNER.y, TOP_LEFT_FRONT_CORNER.z, 1.0);
 GLuint denemee;
 
 // Storing objects and wall in the vertex array object (VAO)
@@ -115,8 +134,8 @@ namespace sphere
 
     int k = 0;
     int l = 0;
-    
-    int colorInt = 0;   
+
+    int colorInt = 0;
 
     vec4 points[numVertices];
     vec4 colors[numVertices];
@@ -206,10 +225,10 @@ namespace sphere
         colorize(colorInt);
     }
 
-    
+
 
     // Assign colors to the sphere
-    
+
 
 } // namespace sphere
 
@@ -226,7 +245,7 @@ namespace wall
     vec2 tex_coords[numVertices];
 
     point4 vertices[8] = {
-        point4(-1.0, -1.0, 1.0, 1.0), 
+        point4(-1.0, -1.0, 1.0, 1.0),
         point4(-1.0, 1.0, 1.0, 1.0),
         point4(1.0, 1.0, 1.0, 1.0),
         point4(1.0, -1.0, 1.0, 1.0),
@@ -241,11 +260,11 @@ namespace wall
     //Creating a face of cube and normals
     void quad(int a, int b, int c, int d, int color)
     {
-        vec4 u = vertices[b] - vertices[a]; 
-        vec4 v = vertices[c] - vertices[b]; 
+        vec4 u = vertices[b] - vertices[a];
+        vec4 v = vertices[c] - vertices[b];
 
-        vec4 normal = normalize(cross(u,v));
-        
+        vec4 normal = normalize(cross(u, v));
+
 
         colors[Index] = vertex_colors[color];
         points[Index] = vertices[a];
@@ -310,7 +329,7 @@ namespace wall
         quad(4, 7, 6, 5, 7);
         quad(5, 1, 0, 4, 1);
 
-        
+
         Index = 0;
     }
 
@@ -335,13 +354,14 @@ void readppm() {
         "2k_saturn.ppm",
         "2k_uranus.ppm",
         "2k_neptune.ppm",
+        "2k_moon.ppm",
         "2k_stars_milky_way2.ppm"
     };
 
 
     //reading basketball.ppm
 
-    for (int k = 0; k < 9; k++) {
+    for (int k = 0; k < 10; k++) {
         FILE* fp = fopen(filenames[k], "r");
         if (fp == NULL) {
             exit(EXIT_FAILURE);
@@ -363,7 +383,7 @@ void readppm() {
     }
 
     // Special case for the 10th image
-    FILE* fp = fopen(filenames[9], "r");
+    FILE* fp = fopen(filenames[10], "r");
     if (fp == NULL) {
         exit(EXIT_FAILURE);
     }
@@ -381,7 +401,8 @@ void readppm() {
     }
 
     fclose(fp);
-   
+
+
 }
 void init()
 {
@@ -391,8 +412,8 @@ void init()
     wall::color();
 
     sphere::tetrahedron(4);
-    
-    
+
+
     GLuint program;
 
     //switching between texture and shade mode
@@ -413,7 +434,7 @@ void init()
 
     glUseProgram(program);
 
-    
+
 
     ModelView = glGetUniformLocation(program, "ModelView");
     Projection = glGetUniformLocation(program, "Projection");
@@ -423,8 +444,8 @@ void init()
     GLuint vColor = glGetAttribLocation(program, "vColor");
 
     //normal and texture coordinates added
-    GLuint vNormal = glGetAttribLocation(program, "vNormal");  
-    GLuint vTexCoord = glGetAttribLocation(program, "vTexCoord");  
+    GLuint vNormal = glGetAttribLocation(program, "vNormal");
+    GLuint vTexCoord = glGetAttribLocation(program, "vTexCoord");
 
     mat4 projection;
 
@@ -434,7 +455,7 @@ void init()
     // Create a vertex array object
     glGenVertexArrays(NUM_OBJECTS, vao);
 
-   
+
     // walls attributes added to buffer
     glBindVertexArray(vao[0]);
 
@@ -446,30 +467,30 @@ void init()
     glBufferSubData(GL_ARRAY_BUFFER, sizeof(wall::points), sizeof(wall::colors),
         wall::colors);
 
-    glBufferSubData(GL_ARRAY_BUFFER, sizeof(wall::points) + sizeof(wall::colors), sizeof(wall::normals), 
-        wall::normals);  
+    glBufferSubData(GL_ARRAY_BUFFER, sizeof(wall::points) + sizeof(wall::colors), sizeof(wall::normals),
+        wall::normals);
 
     glBufferSubData(GL_ARRAY_BUFFER, sizeof(wall::points) + sizeof(wall::colors)
         + sizeof(wall::normals), sizeof(wall::tex_coords), wall::tex_coords);
 
     glEnableVertexAttribArray(vPosition);
     glEnableVertexAttribArray(vColor);
-    glEnableVertexAttribArray(vNormal);  
+    glEnableVertexAttribArray(vNormal);
     glEnableVertexAttribArray(vTexCoord);
 
     glVertexAttribPointer(vPosition, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0));
     glVertexAttribPointer(vColor, 4, GL_FLOAT, GL_FALSE, 0,
-        BUFFER_OFFSET(sizeof(wall::points)));       
+        BUFFER_OFFSET(sizeof(wall::points)));
 
     glVertexAttribPointer(vNormal, 4, GL_FLOAT, GL_FALSE, 0,
-        BUFFER_OFFSET(sizeof(wall::colors)+ sizeof(wall::points))); 
+        BUFFER_OFFSET(sizeof(wall::colors) + sizeof(wall::points)));
 
     glVertexAttribPointer(vTexCoord, 2, GL_FLOAT, GL_FALSE, 0,
         BUFFER_OFFSET(sizeof(wall::colors) + sizeof(wall::points) + sizeof(wall::normals)));
 
     // sphere attributes added to buffer
 
-    for (int i = 1; i < 10; i++) {
+    for (int i = 1; i < 11; i++) {
         glBindVertexArray(vao[i]);
         glGenBuffers(1, &sphere::buffer);
         glBindBuffer(GL_ARRAY_BUFFER, sphere::buffer);
@@ -503,20 +524,20 @@ void init()
             BUFFER_OFFSET(sizeof(sphere::colors) + sizeof(sphere::points) + sizeof(sphere::normals)));
     }
 
-   
-  
+
+
 
     //Standing sphere:
 
 
-   
+
 
     glEnable(GL_COLOR_MATERIAL);
     // Light parametes
-    glGenTextures(9, textures);
+    glGenTextures(11, textures);
 
     //Basketball texture 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         glBindTexture(GL_TEXTURE_2D, textures[i]);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -525,12 +546,12 @@ void init()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2048, 1024, 0,
             GL_RGB, GL_UNSIGNED_BYTE, images[i]);
-       glGenerateMipmap(GL_TEXTURE_2D);
+        glGenerateMipmap(GL_TEXTURE_2D);
 
     }
-    
 
-    glBindTexture(GL_TEXTURE_2D, textures[9]);
+
+    glBindTexture(GL_TEXTURE_2D, textures[10]);
 
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -541,6 +562,7 @@ void init()
 
     //minmapping
     glGenerateMipmap(GL_TEXTURE_2D);
+
 
 
     //switching between texture objects
@@ -555,7 +577,7 @@ void init()
     else {
         light_position = point4(0.5, 0.0, -2.0, 1.0);
     }*/
-    
+
 
     color4 light_ambient(0.2, 0.2, 0.2, 1.0); // L_a
     color4 light_diffuse(1, 1, 1, 1.0); // L_d
@@ -571,7 +593,7 @@ void init()
     if (materialMode == 0) {
         material_shininess = 10;    //metal material
     }
-    else{
+    else {
         material_shininess = 200;   //plastic material
     }
 
@@ -592,7 +614,7 @@ void init()
     color4 diffuse_product = light_diffuse * material_diffuse; // k_d * L_d
     color4 specular_product = light_specular * material_specular; // k_s * L_s
 
-    
+
 
     glUniform4fv(glGetUniformLocation(program, "AmbientProduct"), 1, ambient_product);
     glUniform4fv(glGetUniformLocation(program, "DiffuseProduct"), 1, diffuse_product);
@@ -603,17 +625,17 @@ void init()
     glUniform1f(glGetUniformLocation(program, "Shininess"), material_shininess);
 
 
-    
+
 
     glUniformMatrix4fv(Projection, 1, GL_TRUE, projection);
     glUniform1i(TextureFlagLoc, textureFlag);
 
     //depth test and culling
-    
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    
+
 }
 
 //---------------------------------------------------------------------
@@ -630,17 +652,17 @@ void display(void)
     glBindVertexArray(vao[0]);
     glBindBuffer(GL_ARRAY_BUFFER, wall::buffer);
     glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
-    glBindTexture(GL_TEXTURE_2D, textures[9]);
+    glBindTexture(GL_TEXTURE_2D, textures[10]);
     glDrawArrays(GL_TRIANGLES, 0, wall::numVertices);
-    
+
     displacement += velo;
 
     // increase the displacement vector in every frame
 
     //light replacement
     if (lightMode == 0) {
-        model_view = Translate(vec3(0.5,0.0,0.0));
-        glUniformMatrix4fv(denemee, 1, GL_TRUE, model_view);        
+        model_view = Translate(vec3(0.5, 0.0, 0.0));
+        glUniformMatrix4fv(denemee, 1, GL_TRUE, model_view);
     }
     else {
         model_view = Translate(vec3(displacement.x, displacement.y, displacement.z));
@@ -649,50 +671,75 @@ void display(void)
     }
 
 
-        // rotate cube and sphere
+    // rotate cube and sphere
 
 
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         /*model_view = (Translate(TOP_LEFT_FRONT_CORNER + (i-1) * vec3(0.2, 0, 0)) *
             Scale(SCALE_FACTOR, SCALE_FACTOR, SCALE_FACTOR) * RotateX(Theta[Xaxis]) *
             RotateY(Theta[Yaxis]) *
             RotateZ(Theta[Zaxis]) *
             RotateZ(180)* Translate((i - 1) * vec3(0.2, 0, 0)));*/
 
-        model_view = (Translate(TOP_LEFT_FRONT_CORNER) * RotateX(Theta[i][Xaxis]) *
+        model_view = (Translate(TOP_LEFT_FRONT_CORNER)* RotateX(ThetaR[0]) * RotateZ(ThetaR[2]) *  RotateX(Theta[i][Xaxis]) *
             RotateY(Theta[i][Yaxis]) *
             RotateZ(Theta[i][Zaxis]) *
-            RotateZ(180) * Translate(i * vec3(0.15, 0, 0)) *
+            RotateZ(180) * Translate(distance[i]) *
             Scale(scales[i] / 2, scales[i] / 2, scales[i] / 2));
+        if (i == 9) {
+            model_view = ( Translate(TOP_LEFT_FRONT_CORNER) * RotateX(ThetaR[0]) * RotateZ(ThetaR[2]) * RotateX(Theta[3][Xaxis]) *
+                RotateY(Theta[3][Yaxis]) *
+                RotateZ(Theta[3][Zaxis]) *
+                RotateZ(180) * Translate(distance[3]) * RotateY(Theta[10][Yaxis]) *
+                Scale(scales[i] / 2, scales[i] / 2, scales[i] / 2))  * Translate(vec3(4, 0, 0));
 
+            glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
+            glBindVertexArray(vao[i + 1]);
+            glBindBuffer(GL_ARRAY_BUFFER, sphere::buffer);
 
-        
-        glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
-
-        glBindVertexArray(vao[i+1]);
-        glBindBuffer(GL_ARRAY_BUFFER, sphere::buffer);
-
-        glBindTexture(GL_TEXTURE_2D, textures[i]); //set current texture
-
-
-        //Switching to wireframe
-        if (dmode == 0)
-        {
-            glDrawArrays(GL_LINE_LOOP, 0, sphere::numVertices);
-        }
-        else
-        {
+            glBindTexture(GL_TEXTURE_2D, textures[i]); //set current texture
             glDrawArrays(GL_TRIANGLES, 0, sphere::numVertices);
+
+            for (int a = 0; a < 21; a++) {
+                model_view = (Translate(TOP_LEFT_FRONT_CORNER) * RotateX(ThetaR[0]) * RotateZ(ThetaR[2]) * RotateY(Theta[6][Yaxis]) *
+                    RotateZ(180) * Translate(distance[6]) *
+                    RotateY(a*(360/20)) * Translate(vec3(0.15, 0, 0)) * Scale(0.04, 0.01, 0.04));
+
+                glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
+
+                glDrawArrays(GL_TRIANGLES, 0, sphere::numVertices);
+            }
+
+        }
+
+        else{
+            glUniformMatrix4fv(ModelView, 1, GL_TRUE, model_view);
+            glBindVertexArray(vao[i + 1]);
+            glBindBuffer(GL_ARRAY_BUFFER, sphere::buffer);
+
+            glBindTexture(GL_TEXTURE_2D, textures[i]); //set current texture
+            glDrawArrays(GL_TRIANGLES, 0, sphere::numVertices);
+
+            //Switching to wireframe
+            if (dmode == 0)
+            {
+                glDrawArrays(GL_LINE_LOOP, 0, sphere::numVertices);
+            }
+            else
+            {
+                glDrawArrays(GL_TRIANGLES, 0, sphere::numVertices);
+            }
+
         }
         
     }
-    
 
 
-    
+
+
 
     glFlush();
-    
+
 }
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action,
@@ -714,7 +761,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action,
 
     if ((key == GLFW_KEY_S || key == GLFW_KEY_UP || key == GLFW_KEY_DOWN) && action == GLFW_PRESS)
     {
-        shadeMode = (shadeMode+1)%2; // change shading mode
+        shadeMode = (shadeMode + 1) % 2; // change shading mode
         init();
     }
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
@@ -728,7 +775,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action,
         materialMode = (materialMode + 1) % 2; // change material mode
         init();
     }
-    if ((key == GLFW_KEY_T || key == GLFW_KEY_LEFT || key == GLFW_KEY_RIGHT)  && action == GLFW_PRESS)
+    if ((key == GLFW_KEY_T || key == GLFW_KEY_LEFT || key == GLFW_KEY_RIGHT) && action == GLFW_PRESS)
     {
         objectMode = (objectMode + 1) % 2; // change object
         init();
@@ -747,12 +794,42 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action,
 
     if (key == GLFW_KEY_P && action == GLFW_PRESS)
     {
-        sphere::colorInt = (sphere::colorInt + 1)%7;
+        sphere::colorInt = (sphere::colorInt + 1) % 7;
         printf("%d\n", sphere::colorInt);
         init();
 
     }
+    if (key == GLFW_KEY_0)
+    {
+        ThetaR[0] += 2;
 
+    }
+    if (key == GLFW_KEY_9)
+    {
+        ThetaR[0] -= 2;
+
+    }
+    if (key == GLFW_KEY_8)
+    {
+        ThetaR[2] += 2;
+
+    }
+    if (key == GLFW_KEY_7)
+    {
+        ThetaR[2] -= 2;
+
+    }
+
+    if (key == GLFW_KEY_6)
+    {
+       zoom[2] += 0.1;
+
+    }
+    if (key == GLFW_KEY_5)
+    {
+        zoom[2] -= 0.1;
+
+    }
     if (key == GLFW_KEY_V && action == GLFW_PRESS)
     {
         dmode++; // change drawing mode
@@ -822,7 +899,7 @@ void update(void)
     velo[2] = 0.003;
 
     if (displacement[0] > 0.75)
-    { 
+    {
         direction[0] = 0;
     }
 
@@ -864,10 +941,10 @@ void update(void)
         velo[2] = -0.003;
     }
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 11; i++) {
         Theta[i][1] += thetas[i];
     }
-    
+
 }
 
 // main
@@ -885,7 +962,7 @@ int main()
     GLFWwindow* window = glfwCreateWindow(800, 800, "Project", NULL, NULL);
     glfwMakeContextCurrent(window);
 
-    glewExperimental = GL_TRUE;     
+    glewExperimental = GL_TRUE;
     glewInit();
 
     readppm();      //reading ppm files here
