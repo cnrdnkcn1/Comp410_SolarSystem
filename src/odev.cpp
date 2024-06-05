@@ -114,7 +114,7 @@ const GLfloat Z_SPEED = 0.003;
 vec3 velo(HORIZONTAL_SPEED, VERTICAL_SPEED, Z_SPEED);
 int direction[3] = { 1, 1, 1 };
 
-const vec3 TOP_LEFT_FRONT_CORNER = vec3(0, 0, -1.5); //vec3(-0.75, 0.75, -2.0);
+const vec3 TOP_LEFT_FRONT_CORNER = vec3(0, 0, -1); //vec3(-0.75, 0.75, -2.0);
 
 //point4 light_position(0.0, 0.0, -2.0, 1.0);
 point4 light_position(TOP_LEFT_FRONT_CORNER.x, TOP_LEFT_FRONT_CORNER.y, TOP_LEFT_FRONT_CORNER.z, 1.0);

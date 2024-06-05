@@ -32,7 +32,7 @@ void main() {
 
     // Transform vertex normal into camera coordinates
     vec3 N = normalize( ModelView * vec4(vNormal, 0.0) ).xyz;
-    if( dot(L, N) < -0.95 && pos.x > -0.15 && pos.z < -1.86 && pos.x < 0.15 && pos.z > -2.15) {
+    if( dot(L, N) < -0.95 && pos.x > -0.125 && pos.z < -0.875 && pos.x < 0.125 && pos.z > -1.125 && pos.y > -0.125 &&  pos.y < 0.125) {
         N = -1*N;
     } 
 
